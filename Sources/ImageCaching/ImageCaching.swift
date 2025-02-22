@@ -17,36 +17,37 @@ public struct CachedAsyncImage<I: View, P: View>: View {
         private var platformImage: PlatformImage?
         private var displayedURLOffset: Int = .max
 
-        func task(requests: [ImageRequest], imagePipeline: ImagePipeline) async {
+        func task(requests: [PipelinedRequest]) async {
 
             let validRequests = requests.filter { $0.url != nil }
             guard !validRequests.isEmpty else { return }
 
 
             // Get first available in cache
-            let cached = validRequests
+            let cachedImage = validRequests
                 .lazy
                 .enumerated()
                 .compactMap { offset, request in
-                    imagePipeline.cache[request]
-                        .map { (element: $0, offset: offset)}
+                    request.cachedImage.map { (image: $0, offset: offset) }
                 }
                 .first
 
-            if let cached {
-                self.platformImage = cached.element.image
-                self.displayedURLOffset = cached.offset
+            if let cachedImage {
+                print("Cache hit!")
+                self.platformImage = cachedImage.image
+                self.displayedURLOffset = cachedImage.offset
             }
 
-            // Get async attempt
+            // Get asynchronously from the cache
             await withTaskGroup(of: (offset: Int, result: PlatformImage?).self) { group in
-                for request in validRequests.enumerated() {
+                for (offset, request) in validRequests.enumerated() {
                     group.addTask {
-                        let fetchedImage = try? await imagePipeline.image(for: request.element)
-                        return (request.offset, fetchedImage)
+                        let fetchedImage = try? await request.image()
+                        return (offset, fetchedImage)
                     }
                 }
 
+                // Only move the image
                 for await (offset, image) in group {
                     if let image, offset < displayedURLOffset {
                         self.displayedURLOffset = offset
@@ -58,11 +59,22 @@ public struct CachedAsyncImage<I: View, P: View>: View {
     }
 
     public init(
-        requests: [ImageRequest],
+        requests: [PipelinedRequest],
         @ViewBuilder content: @escaping (Image) -> I = { $0 },
         @ViewBuilder placeholder: () -> P
     ) {
         self.requests = requests
+        self.content = content
+        self.placeholder = placeholder()
+    }
+
+    public init(
+        requests: [ImageRequest],
+        on pipeline: ImagePipeline = .shared,
+        @ViewBuilder content: @escaping (Image) -> I = { $0 },
+        @ViewBuilder placeholder: () -> P
+    ) {
+        self.requests = requests.map { PipelinedRequest(request: $0, on: pipeline) }
         self.content = content
         self.placeholder = placeholder()
 
@@ -71,17 +83,19 @@ public struct CachedAsyncImage<I: View, P: View>: View {
 
     public init(
         url urls: URL?...,
+        on pipeline: ImagePipeline = .shared,
         @ViewBuilder content: @escaping (Image) -> I = { $0 },
         @ViewBuilder placeholder: () -> P
     ) {
         self.init(
             requests: urls.map { ImageRequest(url: $0) },
+            on: pipeline,
             content: content,
             placeholder: placeholder
         )
     }
 
-    var requests: [ImageRequest]
+    var requests: [PipelinedRequest]
     var content: (Image) -> I
     var placeholder: P
 
@@ -99,7 +113,7 @@ public struct CachedAsyncImage<I: View, P: View>: View {
             }
         }
         .task {
-            await model.task(requests: requests, imagePipeline: .shared)
+            await model.task(requests: requests)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
@@ -111,3 +125,32 @@ extension EnvironmentValues {
 }
 
 
+@dynamicMemberLookup
+public struct PipelinedRequest {
+    public var imageRequest: ImageRequest
+    public var pipeline: ImagePipeline
+
+    public func image() async throws -> PlatformImage? {
+        try await pipeline.image(for: imageRequest)
+    }
+
+    public var cachedImage: PlatformImage? {
+        print(self.pipeline.cache)
+        return self.pipeline.cache[self.imageRequest]?.image
+    }
+
+    public init(request: ImageRequest, on pipeline: ImagePipeline) {
+        self.imageRequest = request
+        self.pipeline = pipeline
+    }
+
+    public subscript<T>(dynamicMember keyPath: KeyPath<ImageRequest, T>) -> T {
+        imageRequest[keyPath: keyPath]
+    }
+}
+
+extension ImageRequest {
+    public func withPipeline(_ pipeline: ImagePipeline) -> PipelinedRequest {
+        PipelinedRequest(request: self, on: pipeline)
+    }
+}
