@@ -112,7 +112,7 @@ public struct CachedAsyncImage<I: View, P: View>: View {
                 placeholder
             }
         }
-        .task {
+        .task(id: requests.map { $0.url }) {
             await model.task(requests: requests)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
