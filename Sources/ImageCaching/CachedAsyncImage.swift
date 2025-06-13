@@ -29,45 +29,45 @@ import okio.source
 
 import SwiftUI
 
+import OSLog
+
+let logger = Logger(subsystem: "CachedAsyncImageView", category: "skip-image-caching")
+
 public struct CachedAsyncImage<I: View, P: View>: View {
-
-
     var requests: [PipelinedRequest]
-    let content: (AsyncImagePhase) -> any View
-    var placeholder: () -> P
 
+    @ViewBuilder
+    let content: (Image) -> I
+
+    var label: LocalizedStringKey?
+    var placeholder: () -> P
 
     public init(
         requests: [PipelinedRequest],
+        label: LocalizedStringKey? = nil,
         @ViewBuilder content: @escaping (Image) -> I,
         @ViewBuilder placeholder: @escaping () -> P
     ) {
         self.requests = requests
-        self.content = { phase in
-            switch phase {
-            case .empty:
-                placeholder()
-            case .failure:
-                placeholder()
-            case .success(let image):
-                content(image)
-            @unknown default:
-                placeholder()
-            }
-        }
+        self.label = label
+        self.content = content
         self.placeholder = placeholder
     }
-//
-//    public init(
-//        requests: [ImageRequest],
-//        on pipeline: ImagePipeline = .shared,
-//        @ViewBuilder content: @escaping (Image) -> I,
-//        @ViewBuilder placeholder: @escaping () -> P
-//    ) {
-//        self.requests = requests.map { PipelinedRequest(request: $0, on: pipeline) }
-//        self.content = content
-//        self.placeholder = placeholder
-//    }
+
+    public init(
+        requests: [ImageRequest],
+        on pipeline: ImagePipeline = .shared,
+        label: LocalizedStringKey? = nil,
+        @ViewBuilder content: @escaping (Image) -> I,
+        @ViewBuilder placeholder: @escaping () -> P
+    ) {
+        self.init(
+            requests: requests.map { PipelinedRequest(request: $0, on: pipeline) },
+            label: label,
+            content: content,
+            placeholder: placeholder
+        )
+    }
 
     #if !SKIP
     @State var model = Model()
@@ -75,12 +75,13 @@ public struct CachedAsyncImage<I: View, P: View>: View {
     public var body: some View {
         Group {
             if let image = model.image {
-                AnyView(content(.success(image)))
+                content(image)
             } else {
-                AnyView(placeholder())
+                placeholder()
             }
         }
-        .task {
+        .accessibilityLabel(label)
+        .task(id: requests.map(\.id)) {
             await model.task(requests: requests)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -100,31 +101,35 @@ public struct CachedAsyncImage<I: View, P: View>: View {
         }
         #endif
 
+        private var label: Text?
         private var platformImage: PlatformImage?
         private var displayedURLOffset: Int = .max
 
         func task(requests: [PipelinedRequest]) async {
-
+            logger.info("Loading  Requests: \(dump(requests.map(\.description)))")
             let validRequests = requests.filter { $0.url != nil }
-            guard !validRequests.isEmpty else { return }
-
+            guard !validRequests.isEmpty else {
+                logger.info("No requests to load")
+                return
+            }
 
             // Get first available in cache
             let cachedImage = validRequests
                 .lazy
                 .enumerated()
                 .compactMap { offset, request in
-                    request.cachedImage.map { (image: $0, offset: offset) }
+                    request.cachedImage.map { (image: $0, offset: offset, request: request) }
                 }
                 .first
 
             if let cachedImage {
-                print("Cache hit!")
+                let request = cachedImage.request.imageRequest
+                logger.info("Cached image found: \(dump(request.description)) at offset: \(cachedImage.offset)")
                 self.platformImage = cachedImage.image
                 self.displayedURLOffset = cachedImage.offset
             }
 
-            // Get asynchronously from the cache
+            logger.info("Fetching images from cache...")
             await withTaskGroup(of: (offset: Int, result: PlatformImage?).self) { group in
                 for (offset, request) in validRequests.enumerated() {
                     group.addTask {
@@ -133,9 +138,10 @@ public struct CachedAsyncImage<I: View, P: View>: View {
                     }
                 }
 
-                // Only move the image
                 for await (offset, image) in group {
+                    logger.info("Fetching image complete: \(offset)")
                     if let image, offset < displayedURLOffset {
+                        logger.info("Displayed image updated: \(offset) to \(image)")
                         self.displayedURLOffset = offset
                         self.platformImage = image
                     }
@@ -167,13 +173,11 @@ public struct CachedAsyncImage<I: View, P: View>: View {
                     .Compose(context: context)
             },
             success: { state in
-                
                 let image = Image(painter: self.painter, scale: scale)
                 content(AsyncImagePhase.success(image))
                     .Compose(context: context)
             },
             error: { state in
-
                 content(AsyncImagePhase.failure(ErrorException(cause: state.result.throwable)))
                     .Compose(context: context)
             }
@@ -183,12 +187,43 @@ public struct CachedAsyncImage<I: View, P: View>: View {
 
 }
 
+extension EnvironmentValues {
+    @Entry
+    var imageTag: String?
+
+}
+
+extension View {
+    @ViewBuilder
+    func accessibilityLabel(_ label: Text?) -> some View {
+        if let label {
+            self.accessibilityLabel(label)
+        } else {
+            self
+        }
+
+    }
+
+    @ViewBuilder
+    func accessibilityLabel(_ label: LocalizedStringKey?) -> some View {
+        if let label {
+            self.accessibilityLabel(label)
+        } else {
+            self
+        }
+
+    }
+}
+
 #if !SKIP
 @dynamicMemberLookup
 #endif
 public struct PipelinedRequest {
     public var imageRequest: ImageRequest
     public var pipeline: ImagePipeline
+    public var id: some Hashable {
+        imageRequest.imageId
+    }
 
     public init(request: ImageRequest, on pipeline: ImagePipeline) {
         self.imageRequest = request
@@ -211,8 +246,6 @@ public struct PipelinedRequest {
     #endif
 }
 
-import OSLog
-let logger = Logger(subsystem: "pipeline.imageLoader", category: "ImagePipeline")
 
 // MARK: SKIP Version of NUKEs API
 #if SKIP
