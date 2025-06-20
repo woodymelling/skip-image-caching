@@ -88,6 +88,7 @@ public struct CachedAsyncImage<I: View, P: View>: View {
     }
 
     @Observable
+    @MainActor
     class Model {
         #if canImport(SwiftUI)
         public var image: Image? {
@@ -105,6 +106,8 @@ public struct CachedAsyncImage<I: View, P: View>: View {
         private var platformImage: PlatformImage?
         private var displayedURLOffset: Int = .max
 
+
+        private let lock = NSLock()
         func task(requests: [PipelinedRequest]) async {
             logger.info("Loading  Requests: \(dump(requests.map(\.description)))")
             let validRequests = requests.filter { $0.url != nil }
@@ -129,6 +132,7 @@ public struct CachedAsyncImage<I: View, P: View>: View {
                 self.displayedURLOffset = cachedImage.offset
             }
 
+
             logger.info("Fetching images from cache...")
             await withTaskGroup(of: (offset: Int, result: PlatformImage?).self) { group in
                 for (offset, request) in validRequests.enumerated() {
@@ -139,6 +143,7 @@ public struct CachedAsyncImage<I: View, P: View>: View {
                 }
 
                 for await (offset, image) in group {
+
                     logger.info("Fetching image complete: \(offset)")
                     if let image, offset < displayedURLOffset {
                         logger.info("Displayed image updated: \(offset) to \(image)")
