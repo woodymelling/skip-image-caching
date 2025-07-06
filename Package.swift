@@ -10,9 +10,13 @@ let package = Package(
         // Products define the executables and libraries a package produces, making them visible to other packages.
         .library(
             name: "ImageCaching",
-            targets: ["ImageCaching"]),
+            type: .dynamic,
+            targets: ["ImageCaching"]
+        ),
     ],
     dependencies: [
+        .package(url: "https://source.skip.tools/skip.git", from: "1.2.7"),
+        .package(url: "https://source.skip.tools/skip-ui.git", from: "1.0.0"),
         .package(url: "https://github.com/kean/Nuke", from: "12.8.0"),
         .package(url: "https://github.com/pointfreeco/swift-dependencies", from: "1.7.0")
     ],
@@ -22,21 +26,24 @@ let package = Package(
         .target(
             name: "ImageCaching",
             dependencies: [
+                .product(name: "SkipUI", package: "skip-ui"),
+
                 .product(name: "Dependencies", package: "swift-dependencies"),
                 .product(name: "Nuke", package: "Nuke", condition: .when(platforms: [.iOS])),
-            ]
+            ],
+            plugins: [.plugin(name: "skipstone", package: "skip")]
         ),
     ]
 )
-
-if Context.environment["SKIP_BRIDGE"] ?? "0" != "0" {
-    package.dependencies += [.package(url: "https://source.skip.tools/skip-fuse-ui.git", "0.0.0"..<"2.0.0")]
-    package.targets.forEach({ target in
-        target.dependencies += [.product(name: "SkipFuseUI", package: "skip-fuse-ui")]
-    })
-    // all library types must be dynamic to support bridging
-    package.products = package.products.map({ product in
-        guard let libraryProduct = product as? Product.Library else { return product }
-        return .library(name: libraryProduct.name, type: .dynamic, targets: libraryProduct.targets)
-    })
-}
+//
+//if Context.environment["SKIP_BRIDGE"] ?? "0" != "0" {
+//    package.dependencies += [.package(url: "https://source.skip.tools/skip-fuse-ui.git", "0.0.0"..<"2.0.0")]
+//    package.targets.forEach({ target in
+//        target.dependencies += [.product(name: "SkipFuseUI", package: "skip-fuse-ui")]
+//    })
+//    // all library types must be dynamic to support bridging
+//    package.products = package.products.map({ product in
+//        guard let libraryProduct = product as? Product.Library else { return product }
+//        return .library(name: libraryProduct.name, type: .dynamic, targets: libraryProduct.targets)
+//    })
+//}

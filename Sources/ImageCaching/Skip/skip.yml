@@ -1,7 +1,9 @@
 ## skip.tools per-configuration file
 
-#skip:
-#  package: 'skip.ui'
+# Configuration file for https://skip.tools project
+skip:
+  mode: transpiled
+  bridging: true
 
 # the blocks to add to the settings.gradle.kts
 settings:

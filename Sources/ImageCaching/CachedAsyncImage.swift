@@ -1,11 +1,18 @@
 
-#if !SKIP
+#if !SKIP_BRIDGE
+import Foundation
+import OSLog
+#endif
+
+#if canImport(Nuke)
 @_exported import Nuke
-#else
+#elseif SKIP
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.platform.LocalContext
 import android.webkit.MimeTypeMap
 import coil3.compose.SubcomposeAsyncImage
+
 
 // SKIP INSERT: import coil3.request.ImageRequest as CoilImageRequest
 
@@ -25,11 +32,16 @@ import coil3.asImage
 import kotlin.math.roundToInt
 import okio.buffer
 import okio.source
+
+import SkipFoundation
+import SkipUI
+import SkipLib
 #endif
 
+#if canImport(SwiftUI)
 import SwiftUI
+#endif
 
-import OSLog
 
 let logger = Logger(subsystem: "CachedAsyncImageView", category: "skip-image-caching")
 
@@ -39,17 +51,14 @@ public struct CachedAsyncImage<I: View, P: View>: View {
     @ViewBuilder
     let content: (Image) -> I
 
-    var label: LocalizedStringKey?
     var placeholder: () -> P
 
     public init(
         requests: [PipelinedRequest],
-        label: LocalizedStringKey? = nil,
         @ViewBuilder content: @escaping (Image) -> I,
         @ViewBuilder placeholder: @escaping () -> P
     ) {
         self.requests = requests
-        self.label = label
         self.content = content
         self.placeholder = placeholder
     }
@@ -57,13 +66,11 @@ public struct CachedAsyncImage<I: View, P: View>: View {
     public init(
         requests: [ImageRequest],
         on pipeline: ImagePipeline = .shared,
-        label: LocalizedStringKey? = nil,
         @ViewBuilder content: @escaping (Image) -> I,
         @ViewBuilder placeholder: @escaping () -> P
     ) {
         self.init(
             requests: requests.map { PipelinedRequest(request: $0, on: pipeline) },
-            label: label,
             content: content,
             placeholder: placeholder
         )
@@ -80,7 +87,6 @@ public struct CachedAsyncImage<I: View, P: View>: View {
                 placeholder()
             }
         }
-        .accessibilityLabel(label)
         .task(id: requests.map(\.id)) {
             await model.task(requests: requests)
         }
@@ -162,6 +168,7 @@ public struct CachedAsyncImage<I: View, P: View>: View {
         requests.first { $0.imageRequest.url != nil }
     }
 
+    // SKIP @nobridge
     @Composable
     public override func ComposeContent(context: ComposeContext) {
         guard let request else {
@@ -192,33 +199,6 @@ public struct CachedAsyncImage<I: View, P: View>: View {
 
 }
 
-extension EnvironmentValues {
-    @Entry
-    var imageTag: String?
-
-}
-
-extension View {
-    @ViewBuilder
-    func accessibilityLabel(_ label: Text?) -> some View {
-        if let label {
-            self.accessibilityLabel(label)
-        } else {
-            self
-        }
-
-    }
-
-    @ViewBuilder
-    func accessibilityLabel(_ label: LocalizedStringKey?) -> some View {
-        if let label {
-            self.accessibilityLabel(label)
-        } else {
-            self
-        }
-
-    }
-}
 
 #if !SKIP
 @dynamicMemberLookup
@@ -266,8 +246,8 @@ public class ImagePipeline {
     // SKIP REPLACE: private lateinit var loader: ImageLoader
     private var loader: ImageLoader!
 
-    @Composable
-    public func imageLoader() -> ImageLoader {
+    // SKIP @nobridge
+    @Composable public func imageLoader() -> ImageLoader {
         // SKIP INSERT: val context = LocalContext.current
 
         // SKIP REPLACE:
@@ -360,10 +340,10 @@ public struct ImageRequest {
 }
 
 public struct ImageProcessor {
-    @available(*, deprecated, message: "Processors are unimplemented in skip, will just use default coil storage")
-    public static func resize(size: CGSize) -> ImageProcessor {
-        ImageProcessor()
-    }
+//    @available(*, deprecated, message: "Processors are unimplemented in skip, will just use default coil storage")
+//    public static func resize(size: CGSize) -> ImageProcessor {
+//        ImageProcessor()
+//    }
 
     @available(*, deprecated, message: "Processors are unimplemented in skip, will just use default coil storage")
     public static func resize(width: CGFloat? = nil, height: CGFloat? = nil) -> ImageProcessor {
@@ -381,3 +361,4 @@ extension ImageRequest {
         PipelinedRequest(request: self, on: pipeline)
     }
 }
+
