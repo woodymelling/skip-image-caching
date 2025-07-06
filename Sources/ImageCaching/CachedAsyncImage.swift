@@ -33,55 +33,46 @@ import okio.buffer
 import okio.source
 
 import SkipFoundation
-import SkipUI
 import SkipLib
 #endif
 
-#if canImport(SwiftUI)
 import SwiftUI
-#endif
 
 
 let logger = Logger(subsystem: "CachedAsyncImageView", category: "skip-image-caching")
 
+@MainActor
 public struct CachedAsyncImage<I: View, P: View>: View {
     var requests: [PipelinedRequest]
-
-    @ViewBuilder
-    let content: (Image) -> I
 
     var placeholder: () -> P
 
     public init(
         requests: [PipelinedRequest],
-        @ViewBuilder content: @escaping (Image) -> I,
         @ViewBuilder placeholder: @escaping () -> P
     ) {
         self.requests = requests
-        self.content = content
         self.placeholder = placeholder
     }
 
     public init(
         requests: [ImageRequest],
-        on pipeline: ImagePipeline = .shared,
-        @ViewBuilder content: @escaping (Image) -> I,
+        on pipeline: ImagePipeline,
         @ViewBuilder placeholder: @escaping () -> P
     ) {
         self.init(
             requests: requests.map { PipelinedRequest(request: $0, on: pipeline) },
-            content: content,
             placeholder: placeholder
         )
     }
 
     #if !SKIP
-    @State var model = Model()
+    var model = Model()
 
     public var body: some View {
         Group {
             if let image = model.image {
-                content(image)
+                image
             } else {
                 placeholder()
             }
@@ -205,7 +196,7 @@ public struct CachedAsyncImage<I: View, P: View>: View {
 public struct PipelinedRequest {
     public var imageRequest: ImageRequest
     public var pipeline: ImagePipeline
-    public var id: some Hashable {
+    public var id: String? {
         imageRequest.imageId
     }
 
@@ -312,10 +303,12 @@ public struct ImageCache {
     public init() {}
 }
 
+// SKIP @nobridge
 public struct ImageRequest {
     public init(url: URL?, processors: [ImageProcessor] = []) {
         self.url = url
     }
+
 
     public let url: URL?
     public let proacessors: [ImageProcessor] = []

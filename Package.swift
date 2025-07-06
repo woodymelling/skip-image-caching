@@ -15,10 +15,8 @@ let package = Package(
         ),
     ],
     dependencies: [
-        .package(url: "https://source.skip.tools/skip.git", from: "1.2.7"),
-        .package(url: "https://source.skip.tools/skip-ui.git", from: "1.0.0"),
+        .package(url: "https://source.skip.tools/skip.git", from: "1.3.3"),
         .package(url: "https://github.com/kean/Nuke", from: "12.8.0"),
-        .package(url: "https://github.com/pointfreeco/swift-dependencies", from: "1.7.0")
     ],
     targets: [
         // Targets are the basic building blocks of a package, defining a module or a test suite.
@@ -26,9 +24,6 @@ let package = Package(
         .target(
             name: "ImageCaching",
             dependencies: [
-                .product(name: "SkipUI", package: "skip-ui"),
-
-                .product(name: "Dependencies", package: "swift-dependencies"),
                 .product(name: "Nuke", package: "Nuke", condition: .when(platforms: [.iOS])),
             ],
             plugins: [.plugin(name: "skipstone", package: "skip")]

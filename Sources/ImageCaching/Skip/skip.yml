@@ -3,7 +3,7 @@
 # Configuration file for https://skip.tools project
 skip:
   mode: transpiled
-  bridging: true
+  bridging: false
 
 # the blocks to add to the settings.gradle.kts
 settings:
