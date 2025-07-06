@@ -23,7 +23,7 @@ let package = Package(
             name: "ImageCaching",
             dependencies: [
                 .product(name: "Dependencies", package: "swift-dependencies"),
-                .product(name: "Nuke", package: "nuke")
+                .product(name: "Nuke", package: "Nuke", condition: .when(platforms: [.iOS])),
             ]
         ),
     ]
