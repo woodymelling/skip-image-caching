@@ -2,7 +2,6 @@
 #if !SKIP_BRIDGE
 import Foundation
 import OSLog
-#endif
 
 #if canImport(Nuke)
 @_exported import Nuke
@@ -362,3 +361,4 @@ extension ImageRequest {
     }
 }
 
+#endif
