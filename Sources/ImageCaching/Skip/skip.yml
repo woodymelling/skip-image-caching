@@ -4,21 +4,21 @@
 skip:
   mode: transpiled
   bridging: false
-
-# the blocks to add to the settings.gradle.kts
-settings:
-  contents:
-    - block: 'dependencyResolutionManagement'
-      contents:
-        - block: 'versionCatalogs'
-          contents:
-            - block: 'create("libs")'
-              contents:
-                - 'version("coil", "3.0.4")'
-
-                - 'library("coil-compose", "io.coil-kt.coil3", "coil-compose").versionRef("coil")'
-                - 'library("coil-network-okhttp", "io.coil-kt.coil3", "coil-network-okhttp").versionRef("coil")'
-                - 'library("coil-svg", "io.coil-kt.coil3", "coil-svg").versionRef("coil")'
+#
+## the blocks to add to the settings.gradle.kts
+#settings:
+#  contents:
+#    - block: 'dependencyResolutionManagement'
+#      contents:
+#        - block: 'versionCatalogs'
+#          contents:
+#            - block: 'create("libs")'
+#              contents:
+#                - 'version("coil", "3.0.4")'
+#
+#                - 'library("coil-compose", "io.coil-kt.coil3", "coil-compose").versionRef("coil")'
+#                - 'library("coil-network-okhttp", "io.coil-kt.coil3", "coil-network-okhttp").versionRef("coil")'
+#                - 'library("coil-svg", "io.coil-kt.coil3", "coil-svg").versionRef("coil")'
 ## the blocks to add to the build.gradle.kts
 #build:
 #  contents:
