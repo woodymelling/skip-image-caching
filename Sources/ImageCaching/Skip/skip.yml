@@ -19,18 +19,18 @@ settings:
                 - 'library("coil-compose", "io.coil-kt.coil3", "coil-compose").versionRef("coil")'
                 - 'library("coil-network-okhttp", "io.coil-kt.coil3", "coil-network-okhttp").versionRef("coil")'
                 - 'library("coil-svg", "io.coil-kt.coil3", "coil-svg").versionRef("coil")'
-# the blocks to add to the build.gradle.kts
+## the blocks to add to the build.gradle.kts
 build:
   contents:
-    - block: 'plugins'
-      contents:
-#        - 'alias(libs.plugins.kotlin.compose)'
-
-    - block: 'android'
-      contents:
-        - block: 'buildFeatures'
-          contents:
-            #- 'compose = true'
+#    - block: 'plugins'
+#      contents:
+##        - 'alias(libs.plugins.kotlin.compose)'
+#
+#    - block: 'android'
+#      contents:
+#        - block: 'buildFeatures'
+#          contents:
+#            #- 'compose = true'
 
     - block: 'dependencies'
       export: false
